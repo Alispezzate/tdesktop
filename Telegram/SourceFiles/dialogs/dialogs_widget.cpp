@@ -220,6 +220,9 @@ Widget::Widget(
 })
 , _searchForNarrowLayout(_searchControls, st::dialogsSearchForNarrowFilters)
 , _search(_searchControls, st::dialogsFilter, tr::lng_dlg_filter())
+, _chooseMessageTypeFilter(
+	_searchControls, 
+	object_ptr<Ui::IconButton>(this, st::dialogsFilterType))
 , _chooseFromUser(
 	_searchControls,
 	object_ptr<Ui::IconButton>(this, st::dialogsSearchFrom))
@@ -395,6 +398,7 @@ Widget::Widget(
 	_cancelSearch->setClickedCallback([this] { cancelSearch(); });
 	_jumpToDate->entity()->setClickedCallback([this] { showCalendar(); });
 	_chooseFromUser->entity()->setClickedCallback([this] { showSearchFrom(); });
+	_chooseMessageTypeFilter->entity()->setClickedCallback([this] { showFilterType(); });
 	rpl::single(rpl::empty) | rpl::then(
 		session().domain().local().localPasscodeChanged()
 	) | rpl::start_with_next([=] {
@@ -1967,32 +1971,32 @@ bool Widget::searchMessages(bool searchCache) {
 			_searchInHistoryRequest = histories.sendRequest(history, type, [=](Fn<void()> finish) {
 				const auto type = SearchRequestType::PeerFromStart;
 				using Flag = MTPmessages_Search::Flag;
-				_searchRequest = session().api().request(MTPmessages_Search(
-					MTP_flags((topic ? Flag::f_top_msg_id : Flag())
-						| (fromPeer ? Flag::f_from_id : Flag())
-						| (savedPeer ? Flag::f_saved_peer_id : Flag())
-						| (_searchQueryTags.empty()
-							? Flag()
-							: Flag::f_saved_reaction)),
-					peer->input,
-					MTP_string(_searchQuery),
-					(fromPeer ? fromPeer->input : MTP_inputPeerEmpty()),
-					(savedPeer ? savedPeer->input : MTP_inputPeerEmpty()),
-					MTP_vector_from_range(
-						_searchQueryTags | ranges::views::transform(
-							Data::ReactionToMTP
-						)),
-					MTP_int(topic ? topic->rootId() : 0),
-					MTP_inputMessagesFilterEmpty(),
-					MTP_int(0), // min_date
-					MTP_int(0), // max_date
-					MTP_int(0), // offset_id
-					MTP_int(0), // add_offset
-					MTP_int(kSearchPerPage),
-					MTP_int(0), // max_id
-					MTP_int(0), // min_id
-					MTP_long(0) // hash
-				)).done([=](const MTPmessages_Messages &result) {
+                _searchRequest = session().api().request(MTPmessages_Search(
+                    MTP_flags((topic ? Flag::f_top_msg_id : Flag())
+                        | (fromPeer ? Flag::f_from_id : Flag())
+                        | (savedPeer ? Flag::f_saved_peer_id : Flag())
+                        | (_searchQueryTags.empty()
+                            ? Flag()
+                            : Flag::f_saved_reaction)),
+                    peer->input,
+                    MTP_string(_searchQuery),
+                    (fromPeer ? fromPeer->input : MTP_inputPeerEmpty()),
+                    (savedPeer ? savedPeer->input : MTP_inputPeerEmpty()),
+                    MTP_vector_from_range(
+                        _searchQueryTags | ranges::views::transform(
+                            Data::ReactionToMTP
+                        )),
+                    MTP_int(topic ? topic->rootId() : 0),
+					MTP_inputMessagesFilterPhotos(), // TODO: change filter based on search type
+                    MTP_int(0), // min_date
+                    MTP_int(0), // max_date
+                    MTP_int(0), // offset_id
+                    MTP_int(0), // add_offset
+                    MTP_int(kSearchPerPage),
+                    MTP_int(0), // max_id
+                    MTP_int(0), // min_id
+                    MTP_long(0) // hash
+                )).done([=](const MTPmessages_Messages &result) {
 					_searchInHistoryRequest = 0;
 					searchReceived(type, result, _searchRequest);
 					finish();
@@ -2014,7 +2018,7 @@ bool Widget::searchMessages(bool searchCache) {
 				MTP_flags(flags),
 				MTP_int(folderId),
 				MTP_string(_searchQuery),
-				MTP_inputMessagesFilterEmpty(),
+				MTP_inputMessagesFilterPhotos(), // TODO: change filter based on search type
 				MTP_int(0), // min_date
 				MTP_int(0), // max_date
 				MTP_int(0),
@@ -2685,6 +2689,15 @@ void Widget::applySearchUpdate(bool force) {
 			showSearchFrom();
 		}
 	}
+
+	if(_chooseMessageTypeFilter->toggled()) {
+		auto switchToChooseMessageType = HistoryView::SwitchToChooseMessageTypeQuery();
+		if (_lastSearchText != switchToChooseMessageType
+			&& switchToChooseMessageType.startsWith(_lastSearchText)
+			&& filterText == switchToChooseMessageType) {
+			showChooseMessageType();
+		}
+	}
 	_lastSearchText = filterText;
 	updateForceDisplayWide();
 }
@@ -2975,6 +2988,28 @@ void Widget::showSearchFrom() {
 	}
 }
 
+void Widget::showChooseMessageType() {
+	if (const auto peer = searchInPeer()) {
+		auto box = ChooseMessageTypeBox(
+			peer,
+			crl::guard(this, [=](Data::MessageType type) {
+				controller()->hideLayer();
+				_inner->setFilterType(type);
+				applySearchUpdate(true);
+				}),
+			crl::guard(this, [=] { _search->setFocus(); }));
+		if (box) {
+			controller()->show(std::move(box));
+		}
+	}
+}
+
+void Widget::showFilterType(){
+	//TODO: implement
+}
+
+
+
 void Widget::searchCursorMoved() {
 	const auto to = _search->textCursor().position();
 	const auto text = _search->getLastText();
@@ -3157,6 +3192,7 @@ void Widget::updateControlsGeometry() {
 	_cancelSearch->moveToLeft(right - _cancelSearch->width(), _search->y());
 	right -= _jumpToDate->width(); _jumpToDate->moveToLeft(right, _search->y());
 	right -= _chooseFromUser->width(); _chooseFromUser->moveToLeft(right, _search->y());
+	right -= _chooseMessageTypeFilter->width(); _chooseMessageTypeFilter->moveToLeft(right, _search->y());
 
 	const auto barw = width();
 	const auto expandedStoriesTop = filterAreaTop + filterAreaHeight;

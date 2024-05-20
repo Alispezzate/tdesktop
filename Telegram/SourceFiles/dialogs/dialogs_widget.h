@@ -194,6 +194,8 @@ private:
 		PeerData *from = nullptr);
 	void showCalendar();
 	void showSearchFrom();
+	void showChooseMessageType();
+	void showFilterType();
 	void showMainMenu();
 	void clearSearchCache();
 	void setSearchQuery(const QString &query);
@@ -271,6 +273,7 @@ private:
 	} _mainMenu;
 	object_ptr<Ui::IconButton> _searchForNarrowLayout;
 	object_ptr<Ui::InputField> _search;
+	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _chooseMessageTypeFilter;
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _chooseFromUser;
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _jumpToDate;
 	object_ptr<Ui::CrossButton> _cancelSearch;

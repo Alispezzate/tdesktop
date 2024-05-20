@@ -49,9 +49,53 @@ object_ptr<Ui::BoxContent> SearchFromBox(
 	return nullptr;
 }
 
+object_ptr<Ui::BoxContent> ChooseMessageTypeBox(
+	not_null<PeerData*> peer,
+	Fn<void(not_null<PeerData*>, HistoryItem::Type)> callback,
+	Fn<void()> closedCallback) {
+	auto createController = [
+		peer,
+			callback = std::move(callback)
+	]() -> std::unique_ptr<PeerListController> {
+		if (peer && (peer->isChat() || peer->isMegagroup())) {
+			return std::make_unique<Dialogs::ChooseMessageTypeController>(
+				peer,
+				std::move(callback));
+		}
+		return nullptr;
+		};
+		if (auto controller = createController()) {
+			auto subscription = std::make_shared<rpl::lifetime>();
+			auto box = Box<PeerListBox>(
+				std::move(controller),
+				[subscription](not_null<PeerListBox*> box) {
+					box->addButton(tr::lng_cancel(), [box, subscription] {
+						box->closeBox();
+						});
+				});
+			box->boxClosing() | rpl::start_with_next(
+				std::move(closedCallback),
+				*subscription);
+			return box;
+		}
+		return nullptr;
+}
+
 SearchFromController::SearchFromController(
 	not_null<PeerData*> peer,
 	Fn<void(not_null<PeerData*>)> callback)
+: AddSpecialBoxController(
+	peer,
+	ParticipantsBoxController::Role::Members,
+	AdminDoneCallback(),
+	BannedDoneCallback())
+, _callback(std::move(callback)) {
+	_excludeSelf = false;
+}
+
+ChooseMessageTypeController::ChooseMessageTypeController(
+	not_null<PeerData*> peer,
+	Fn<void(not_null<PeerData*>, HistoryItem::Type)> callback)
 : AddSpecialBoxController(
 	peer,
 	ParticipantsBoxController::Role::Members,

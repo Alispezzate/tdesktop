@@ -107,6 +107,10 @@ QString SwitchToChooseFromQuery() {
 	return u"from:"_q;
 }
 
+QString SwitchToChooseMessageTypeQuery() {
+	return u""_q; //TODO: implement
+}
+
 TopBarWidget::TopBarWidget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
@@ -976,6 +980,7 @@ void TopBarWidget::updateControlsGeometry() {
 		_searchCancel.destroy();
 		_jumpToDate.destroy();
 		_chooseFromUser.destroy();
+		_chooseMessageTypeFilter.destroy();
 	}
 	auto searchFieldTop = _searchField
 		? countSelectedButtonsTop(_searchShown.value(_searchMode ? 1. : 0.))
