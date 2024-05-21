@@ -2990,13 +2990,21 @@ void Widget::showSearchFrom() {
 
 void Widget::showChooseMessageType() {
 	if (const auto peer = searchInPeer()) {
-		auto box = ChooseMessageTypeBox(
+		const auto weak = base::make_weak(_searchInChat.topic());
+		const auto chat = (!_searchInChat && _openedForum)
+			? Key(_openedForum->history())
+			: _searchInChat;
+		auto box = SearchFromBox(
 			peer,
-			crl::guard(this, [=](MTPmessagesFilter type) {
+			crl::guard(this, [=](not_null<PeerData*> from) {
 				controller()->hideLayer();
-				_inner->setFilterType(type);
+				if (!chat.topic()) {
+					setSearchInChat(chat, from);
+				} else if (const auto strong = weak.get()) {
+					setSearchInChat(strong, from);
+				}
 				applySearchUpdate(true);
-				}),
+			}),
 			crl::guard(this, [=] { _search->setFocus(); }));
 		if (box) {
 			controller()->show(std::move(box));

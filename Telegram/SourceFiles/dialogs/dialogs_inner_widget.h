@@ -150,7 +150,7 @@ public:
 
 	void applyFilterUpdate(QString newFilter, bool force = false);
 	void onHashtagFilterUpdate(QStringView newFilter);
-	void setFilterType(MTPmessagesFilter type);
+	void setFilterType(not_null<PeerData*> type);
 	void appendToFiltered(Key key);
 
 	Data::Thread *updateFromParentDrag(QPoint globalPosition);

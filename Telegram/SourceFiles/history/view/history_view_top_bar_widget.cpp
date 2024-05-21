@@ -1476,15 +1476,24 @@ void TopBarWidget::searchEnableChooseFromUser(bool enable, bool visible) {
 		return;
 	} else if (!enable) {
 		_chooseFromUser.destroy();
+		_chooseMessageTypeFilter.destroy();
 	} else if (!_chooseFromUser) {
 		_chooseFromUser.create(
 			this,
 			object_ptr<Ui::IconButton>(this, st::dialogsSearchFrom));
+		_chooseMessageTypeFilter.create(
+			this,
+			object_ptr<Ui::IconButton>(this, st::dialogsSearchFrom));
 		_chooseFromUser->toggle(visible, anim::type::instant);
+		_chooseMessageTypeFilter->toggle(visible, anim::type::instant);
 		_chooseFromUser->entity()->clicks(
 		) | rpl::to_empty | rpl::start_to_stream(
 			_chooseFromUserRequests,
 			_chooseFromUser->lifetime());
+		// _chooseMessageTypeFilter->entity()->clicks(
+		// ) | rpl::to_empty | rpl::start_to_stream(
+		// 	_chooseMessageTypeFilterRequests,
+		// 	_chooseMessageTypeFilter->lifetime());
 	} else {
 		_chooseFromUser->toggle(visible, anim::type::normal);
 	}

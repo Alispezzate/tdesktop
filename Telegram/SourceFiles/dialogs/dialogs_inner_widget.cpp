@@ -2475,7 +2475,7 @@ void InnerWidget::onHashtagFilterUpdate(QStringView newFilter) {
 	clearMouseSelection(true);
 }
 
-void InnerWidget::setFilterType(MTPmessagesFilter type) {
+void InnerWidget::setFilterType(not_null<PeerData*> type) {
 	//TODO: implement
 }
 

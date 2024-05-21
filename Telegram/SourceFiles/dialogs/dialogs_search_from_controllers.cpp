@@ -51,7 +51,7 @@ object_ptr<Ui::BoxContent> SearchFromBox(
 
 object_ptr<Ui::BoxContent> ChooseMessageTypeBox(
 	not_null<PeerData*> peer,
-	Fn<void(MTPmessagesFilter)> callback,
+	Fn<void(not_null<PeerData*>)> callback,
 	Fn<void()> closedCallback) {
 	auto createController = [
 		peer,
@@ -95,7 +95,7 @@ SearchFromController::SearchFromController(
 
 ChooseMessageTypeController::ChooseMessageTypeController(
 	not_null<PeerData*> peer,
-	Fn<void(not_null<PeerData*>, MTPmessagesFilter)> callback)
+	Fn<void(not_null<PeerData*>/*, MTPmessagesFilter*/)> callback)
 : AddSpecialBoxController(
 	peer,
 	ParticipantsBoxController::Role::Members,
@@ -120,7 +120,7 @@ void SearchFromController::prepare() {
 
 void ChooseMessageTypeController::prepare() {
 	AddSpecialBoxController::prepare();
-	//delegate()->peerListSetTitle(tr::lng_choose_message_type());
+	delegate()->peerListSetTitle(tr::lng_search_messages_from());
 	if (const auto megagroup = peer()->asMegagroup()) {
 		if (!delegate()->peerListFindRow(megagroup->id.value)) {
 			delegate()->peerListAppendRow(
@@ -140,6 +140,7 @@ void SearchFromController::rowClicked(not_null<PeerListRow*> row) {
 void ChooseMessageTypeController::rowClicked(not_null<PeerListRow*> row) {
 	if (const auto onstack = base::duplicate(_callback)) {
 		//onstack(peer(), MTPmessagesFilter(row->peer()->id));
+		onstack(row->peer());
 	}
 }
 
