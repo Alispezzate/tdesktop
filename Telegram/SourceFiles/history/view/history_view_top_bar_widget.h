@@ -42,6 +42,8 @@ class SendActionPainter;
 
 [[nodiscard]] QString SwitchToChooseFromQuery();
 
+[[nodiscard]] QString SwitchToChooseMessageTypeQuery();
+
 class TopBarWidget final : public Ui::RpWidget {
 public:
 	struct SelectedState {
@@ -220,6 +222,8 @@ private:
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _chooseFromUser
 		= { nullptr };
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _jumpToDate
+		= { nullptr };
+	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _chooseMessageTypeFilter
 		= { nullptr };
 	object_ptr<Ui::CrossButton> _searchCancel = { nullptr };
 	rpl::variable<QString> _searchQuery;

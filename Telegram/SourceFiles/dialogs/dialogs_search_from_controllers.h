@@ -19,7 +19,7 @@ object_ptr<Ui::BoxContent> SearchFromBox(
 
 object_ptr<Ui::BoxContent> ChooseMessageTypeBox(
 	not_null<PeerData*> peer,
-	Fn<void(not_null<PeerData*>, HistoryItem::Type)> callback,
+	Fn<void(MTPmessagesFilter)> callback,
 	Fn<void()> closedCallback);
 
 class SearchFromController : public AddSpecialBoxController {
@@ -41,13 +41,13 @@ class ChooseMessageTypeController : public AddSpecialBoxController {
 public:
 	ChooseMessageTypeController(
 		not_null<PeerData*> peer,
-		Fn<void(not_null<PeerData*>, HistoryItem::Type)> callback);
+		Fn<void(not_null<PeerData*>, MTPmessagesFilter)> callback);
 
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
 
 private:
-	Fn<void(not_null<PeerData*>, HistoryItem::Type)> _callback;
+	Fn<void(not_null<PeerData*>, MTPmessagesFilter)> _callback;
 };
 
 } // namespace Dialogs

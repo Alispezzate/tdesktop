@@ -1980,7 +1980,7 @@ bool Widget::searchMessages(bool searchCache) {
                             : Flag::f_saved_reaction)),
                     peer->input,
                     MTP_string(_searchQuery),
-                    (fromPeer ? fromPeer->input : MTP_inputPeerEmpty()),
+                    (fromPeer ? fromPeer->input : MTP_inputPeerEmpty()), //TODO: copy this logic for the other filter
                     (savedPeer ? savedPeer->input : MTP_inputPeerEmpty()),
                     MTP_vector_from_range(
                         _searchQueryTags | ranges::views::transform(
@@ -2992,7 +2992,7 @@ void Widget::showChooseMessageType() {
 	if (const auto peer = searchInPeer()) {
 		auto box = ChooseMessageTypeBox(
 			peer,
-			crl::guard(this, [=](Data::MessageType type) {
+			crl::guard(this, [=](MTPmessagesFilter type) {
 				controller()->hideLayer();
 				_inner->setFilterType(type);
 				applySearchUpdate(true);

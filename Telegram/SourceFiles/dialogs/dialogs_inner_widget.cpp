@@ -1177,6 +1177,12 @@ void InnerWidget::paintSearchInChat(
 		paintSearchInPeer(p, _searchFromShown, _searchFromUserUserpic, top, _searchFromUserText);
 		p.restoreTextPalette();
 	}
+	/*if (_dialogsFilterTypeShown) {
+		p.setPen(st::dialogsTextFg);
+		p.setTextPalette(st::dialogsSearchFromPalette);
+		paintSearchInPeer(p, _dialogsFilterTypeShown, _dialogsFilterTypeUserpic, top, _dialogsFilterTypeText);
+		p.restoreTextPalette();
+	}*/
 }
 template <typename PaintUserpic>
 void InnerWidget::paintSearchInFilter(
@@ -2467,6 +2473,10 @@ void InnerWidget::onHashtagFilterUpdate(QStringView newFilter) {
 	}
 	refresh(true);
 	clearMouseSelection(true);
+}
+
+void InnerWidget::setFilterType(MTPmessagesFilter type) {
+	//TODO: implement
 }
 
 void InnerWidget::appendToFiltered(Key key) {
