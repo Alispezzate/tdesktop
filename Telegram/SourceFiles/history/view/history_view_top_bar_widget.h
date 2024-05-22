@@ -231,6 +231,7 @@ private:
 	rpl::event_stream<> _searchSubmitted;
 	rpl::event_stream<> _jumpToDateRequests;
 	rpl::event_stream<> _chooseFromUserRequests;
+	rpl::event_stream<> _chooseMessageTypeFilterRequests;
 
 	object_ptr<Ui::IconButton> _back;
 	object_ptr<Ui::IconButton> _cancelChoose;

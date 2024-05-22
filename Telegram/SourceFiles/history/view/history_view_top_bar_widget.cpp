@@ -1089,6 +1089,11 @@ void TopBarWidget::updateControlsGeometry() {
 		if (_chooseFromUser) {
 			_chooseFromUser->moveToLeft(right, _searchField->y());
 		}
+		if(_chooseMessageTypeFilter){
+			_chooseMessageTypeFilter->moveToLeft(
+				right - _chooseMessageTypeFilter->width(),
+				_searchField->y());
+		}
 	}
 
 	_rightTaken = 0;
@@ -1490,16 +1495,18 @@ void TopBarWidget::searchEnableChooseFromUser(bool enable, bool visible) {
 		) | rpl::to_empty | rpl::start_to_stream(
 			_chooseFromUserRequests,
 			_chooseFromUser->lifetime());
-		// _chooseMessageTypeFilter->entity()->clicks(
-		// ) | rpl::to_empty | rpl::start_to_stream(
-		// 	_chooseMessageTypeFilterRequests,
-		// 	_chooseMessageTypeFilter->lifetime());
+		_chooseMessageTypeFilter->entity()->clicks(
+		) | rpl::to_empty | rpl::start_to_stream(
+			_chooseFromUserRequests,
+			_chooseMessageTypeFilter->lifetime());
 	} else {
 		_chooseFromUser->toggle(visible, anim::type::normal);
+		_chooseMessageTypeFilter->toggle(visible, anim::type::normal);
 	}
 	auto additional = QMargins();
 	if (_chooseFromUser && _chooseFromUser->toggled()) {
 		additional.setRight(_chooseFromUser->width());
+		additional.setRight(_chooseMessageTypeFilter->width());
 	}
 	_searchField->setAdditionalMargins(additional);
 	updateControlsVisibility();

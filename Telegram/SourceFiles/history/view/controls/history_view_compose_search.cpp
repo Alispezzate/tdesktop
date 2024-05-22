@@ -641,6 +641,7 @@ private:
 
 	base::unique_qptr<Ui::IconButton> _jumpToDate;
 	base::unique_qptr<Ui::IconButton> _chooseFromUser;
+	base::unique_qptr<Ui::IconButton> _chooseMessageTypeFilter;
 	base::unique_qptr<Ui::FlatLabel> _counter;
 
 	int _total = -1;

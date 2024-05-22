@@ -222,7 +222,7 @@ Widget::Widget(
 , _search(_searchControls, st::dialogsFilter, tr::lng_dlg_filter())
 , _chooseMessageTypeFilter(
 	_searchControls, 
-	object_ptr<Ui::IconButton>(this, st::dialogsFilterType))
+	object_ptr<Ui::IconButton>(this, st::dialogsSearchFrom))
 , _chooseFromUser(
 	_searchControls,
 	object_ptr<Ui::IconButton>(this, st::dialogsSearchFrom))
@@ -3013,7 +3013,28 @@ void Widget::showChooseMessageType() {
 }
 
 void Widget::showFilterType(){
-	//TODO: implement
+	//TODO: show filter types
+	if (const auto peer = searchInPeer()) {
+		const auto weak = base::make_weak(_searchInChat.topic());
+		const auto chat = (!_searchInChat && _openedForum)
+			? Key(_openedForum->history())
+			: _searchInChat;
+		auto box = SearchFromBox(
+			peer,
+			crl::guard(this, [=](not_null<PeerData*> from) {
+				controller()->hideLayer();
+				if (!chat.topic()) {
+					setSearchInChat(chat, from);
+				} else if (const auto strong = weak.get()) {
+					setSearchInChat(strong, from);
+				}
+				applySearchUpdate(true);
+			}),
+			crl::guard(this, [=] { _search->setFocus(); }));
+		if (box) {
+			controller()->show(std::move(box));
+		}
+	}
 }
 
 
@@ -3135,10 +3156,14 @@ void Widget::updateSearchFromVisibility(bool fast) {
 	_chooseFromUser->toggle(
 		visible,
 		fast ? anim::type::instant : anim::type::normal);
+	_chooseMessageTypeFilter->toggle(
+		visible,
+		fast ? anim::type::instant : anim::type::normal);
 	if (changed) {
 		auto additional = QMargins();
 		if (visible) {
 			additional.setRight(_chooseFromUser->width());
+			additional.setRight(_chooseMessageTypeFilter->width());
 		}
 		_search->setAdditionalMargins(additional);
 	}
