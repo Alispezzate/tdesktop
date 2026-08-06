@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/qt/qt_compare.h"
+#include "api/api_messages_search.h"
 #include "data/data_message_reaction_id.h"
 
 class History;
@@ -144,6 +145,7 @@ struct SearchState {
 	PeerData *fromPeer = nullptr;
 	ChannelData *community = nullptr;
 	std::vector<Data::ReactionId> tags;
+	Api::SearchFilter mediaFilter = Api::SearchFilter::NoFilter;
 	ChatSearchTab tab = {};
 	ChatTypeFilter filter = ChatTypeFilter::All;
 	bool fromArchive = true;

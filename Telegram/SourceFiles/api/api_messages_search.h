@@ -23,7 +23,13 @@ namespace Api {
 enum class SearchFilter {
 	NoFilter,
 	Pinned,
+	Text,
+	Photo,
+	Video,
+	Gif,
 };
+
+[[nodiscard]] MTPMessagesFilter PrepareSearchFilter(SearchFilter filter);
 
 struct FoundMessages {
 	int total = -1;

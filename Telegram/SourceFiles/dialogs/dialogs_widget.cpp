@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/chat_filters_tabs_strip.h"
 #include "ui/widgets/elastic_scroll.h"
 #include "ui/widgets/fields/input_field.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
@@ -59,6 +60,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session_settings.h"
 #include "api/api_authorizations.h"
 #include "api/api_chat_filters.h"
+#include "api/api_messages_search.h"
 #include "apiwrap.h"
 #include "chat_helpers/message_field.h"
 #include "core/application.h"
@@ -99,6 +101,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 #include "styles/style_dialogs_widget.h"
 #include "styles/style_info.h"
+#include "styles/style_media_player.h"
+#include "styles/style_menu_icons.h"
 #include "styles/style_window.h"
 #include "base/qt/qt_common_adapters.h"
 #include "boxes/abstract_box.h"
@@ -413,6 +417,9 @@ Widget::Widget(
 , _chooseFromUser(
 	_searchControls,
 	object_ptr<Ui::IconButton>(this, st::dialogsSearchFrom))
+, _chooseType(
+	_searchControls,
+	object_ptr<Ui::IconButton>(this, st::dialogsSearchType))
 , _jumpToDate(
 	_searchControls,
 	object_ptr<Ui::IconButton>(this, st::dialogsCalendar))
@@ -669,6 +676,9 @@ Widget::Widget(
 	_chooseFromUser->entity()->setClickedCallback([=] { showSearchFrom(); });
 	_chooseFromUser->entity()->setAccessibleName(
 		tr::lng_search_messages_from(tr::now));
+	_chooseType->entity()->setClickedCallback([=] { showSearchType(); });
+	_chooseType->entity()->setAccessibleName(
+		tr::lng_search_messages_filter_all_types(tr::now));
 	rpl::single(rpl::empty) | rpl::then(
 		session().domain().local().localPasscodeChanged()
 	) | rpl::on_next([=] {
@@ -3059,11 +3069,15 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 		: nullptr;
 	const auto filter = _searchState.filter;
 	const auto fromArchive = _searchState.fromArchive;
+	const auto mediaFilter = _searchState.mediaFilter;
 	const auto fromStartType = SearchRequestType{
 		.start = true,
 		.peer = (inPeer != nullptr),
 	};
-	if (trimmed.isEmpty() && !fromPeer && inTags.empty()) {
+	if (trimmed.isEmpty()
+		&& !fromPeer
+		&& inTags.empty()
+		&& mediaFilter == Api::SearchFilter::NoFilter) {
 		cancelSearchRequest();
 
 		// Otherwise inside first searchApplyEmpty we call searchMode(),
@@ -3104,6 +3118,7 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 			_searchQueryCommunity = community;
 			_searchQueryFilter = filter;
 			_searchQueryFromArchive = fromArchive;
+			_searchQueryMediaFilter = mediaFilter;
 			process->nextRate = 0;
 			process->full = false;
 			_migratedProcess.full = false;
@@ -3117,7 +3132,8 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 		|| _searchQueryTab != tab
 		|| _searchQueryCommunity != community
 		|| _searchQueryFilter != filter
-		|| _searchQueryFromArchive != fromArchive) {
+		|| _searchQueryFromArchive != fromArchive
+		|| _searchQueryMediaFilter != mediaFilter) {
 		const auto process = currentSearchProcess();
 		_searchQuery = query;
 		_searchQueryFrom = fromPeer;
@@ -3126,6 +3142,7 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 		_searchQueryCommunity = community;
 		_searchQueryFilter = filter;
 		_searchQueryFromArchive = fromArchive;
+		_searchQueryMediaFilter = mediaFilter;
 		process->nextRate = 0;
 		process->full = false;
 		_migratedProcess.full = false;
@@ -3166,7 +3183,7 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 								Data::ReactionToMTP
 							)),
 						MTP_int(topic ? topic->rootId() : 0),
-						MTP_inputMessagesFilterEmpty(),
+						PrepareSearchFilter(_searchQueryMediaFilter),
 						MTP_int(0), // min_date
 						MTP_int(0), // max_date
 						MTP_int(0), // offset_id
@@ -3381,7 +3398,7 @@ void Widget::searchMore() {
 								Data::ReactionToMTP
 							)),
 						MTP_int(topic ? topic->rootId() : 0),
-						MTP_inputMessagesFilterEmpty(),
+						PrepareSearchFilter(_searchQueryMediaFilter),
 						MTP_int(0), // min_date
 						MTP_int(0), // max_date
 						MTP_int(process->lastId),
@@ -3435,7 +3452,7 @@ void Widget::searchMore() {
 					MTPInputPeer(), // saved_peer_id
 					MTPVector<MTPReaction>(), // saved_reaction
 					MTPint(), // top_msg_id
-					MTP_inputMessagesFilterEmpty(),
+					PrepareSearchFilter(_searchQueryMediaFilter),
 					MTP_int(0), // min_date
 					MTP_int(0), // max_date
 					MTP_int(_migratedProcess.lastId),
@@ -3523,7 +3540,7 @@ void Widget::requestMessages(bool fromStart) {
 			MTP_int(folderId),
 			(community ? community->inputChannel() : MTPInputChannel()),
 			MTP_string(_searchQuery),
-			MTP_inputMessagesFilterEmpty(),
+			PrepareSearchFilter(_searchQueryMediaFilter),
 			MTP_int(0), // min_date
 			MTP_int(0), // max_date
 			MTP_int(fromStart ? 0 : _searchProcess.nextRate),
@@ -4090,6 +4107,9 @@ bool Widget::applySearchState(SearchState state) {
 	if (!state.tags.empty()) {
 		state.inChat = session().data().history(session().user());
 	}
+	if (!state.inChat) {
+		state.mediaFilter = Api::SearchFilter::NoFilter;
+	}
 
 	const auto clearQuery = state.fromPeer
 		&& (_lastSearchText == HistoryView::SwitchToChooseFromQuery());
@@ -4111,6 +4131,8 @@ bool Widget::applySearchState(SearchState state) {
 		state.fromArchive = true;
 	}
 	const auto filterChanged = (_searchState.filter != state.filter);
+	const auto mediaFilterChanged = (_searchState.mediaFilter
+		!= state.mediaFilter);
 	const auto fromArchiveChanged = (_searchState.fromArchive
 		!= state.fromArchive);
 
@@ -4191,6 +4213,7 @@ bool Widget::applySearchState(SearchState state) {
 	}
 	updateJumpToDateVisibility();
 	updateSearchFromVisibility();
+	updateSearchTypeVisibility();
 	updateLockUnlockPosition();
 
 	const auto searchCleared = state.query.isEmpty()
@@ -4201,6 +4224,7 @@ bool Widget::applySearchState(SearchState state) {
 		|| communityChanged
 		|| fromPeerChanged
 		|| filterChanged
+		|| mediaFilterChanged
 		|| fromArchiveChanged
 		|| tagsChanged
 		|| tabChanged) {
@@ -4256,6 +4280,7 @@ void Widget::clearSearchCache(bool clearPosts) {
 	_searchQuery = QString();
 	_searchQueryFrom = nullptr;
 	_searchQueryTags.clear();
+	_searchQueryMediaFilter = Api::SearchFilter::NoFilter;
 	if (clearPosts) {
 		_postsProcess.cache.clear();
 		const auto queries = base::take(_postsProcess.queries);
@@ -4306,6 +4331,51 @@ void Widget::showSearchFrom() {
 			controller()->show(std::move(box));
 		}
 	}
+}
+
+void Widget::showSearchType() {
+	auto menu = base::make_unique_q<Ui::PopupMenu>(
+		this,
+		st::popupMenuWithIcons);
+	menu->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
+	const auto check = &st::mediaPlayerMenuCheck;
+	const auto add = [&](
+			Api::SearchFilter filter,
+			const QString &text,
+			const style::icon *icon) {
+		const auto selected = (_searchState.mediaFilter == filter);
+		menu->addAction(text, [=] {
+			if (_searchState.mediaFilter == filter) {
+				return;
+			}
+			auto copy = _searchState;
+			copy.mediaFilter = filter;
+			applySearchState(std::move(copy));
+		}, selected ? check : icon);
+	};
+	add(
+		Api::SearchFilter::NoFilter,
+		tr::lng_search_messages_filter_all_types(tr::now),
+		nullptr);
+	add(
+		Api::SearchFilter::Text,
+		tr::lng_search_messages_filter_text(tr::now),
+		nullptr);
+	add(
+		Api::SearchFilter::Photo,
+		tr::lng_media_type_photos(tr::now),
+		&st::menuIconPhoto);
+	add(
+		Api::SearchFilter::Video,
+		tr::lng_media_type_videos(tr::now),
+		nullptr);
+	add(
+		Api::SearchFilter::Gif,
+		tr::lng_media_type_gifs(tr::now),
+		&st::menuIconGif);
+	menu->popup(_chooseType->entity()->mapToGlobal(
+		QPoint(0, _chooseType->entity()->height())));
+	_menu = std::move(menu);
 }
 
 void Widget::searchCursorMoved() {
@@ -4444,12 +4514,41 @@ void Widget::updateSearchFromVisibility(bool fast) {
 	if (_subsectionTopBar) {
 		_subsectionTopBar->searchEnableChooseFromUser(true, visible);
 	} else if (changed) {
-		auto additional = QMargins();
-		if (visible) {
-			additional.setRight(_chooseFromUser->width());
-		}
-		_search->setAdditionalMargins(additional);
+		updateSearchMargins();
 	}
+}
+
+void Widget::updateSearchTypeVisibility(bool fast) {
+	auto visible = [&] {
+		if (const auto peer = searchInPeer()) {
+			if (peer->isChat() || peer->isMegagroup()) {
+				return true;
+			}
+		}
+		return false;
+	}();
+	const auto changed = (visible == !_chooseType->toggled());
+	_chooseType->toggle(
+		visible,
+		fast ? anim::type::instant : anim::type::normal);
+	if (!_subsectionTopBar && changed) {
+		updateSearchMargins();
+	}
+}
+
+void Widget::updateSearchMargins() {
+	auto additional = QMargins();
+	auto right = 0;
+	if (_chooseFromUser->toggled()) {
+		right += _chooseFromUser->width();
+	}
+	if (_chooseType->toggled()) {
+		right += _chooseType->width();
+	}
+	if (right) {
+		additional.setRight(right);
+	}
+	_search->setAdditionalMargins(additional);
 }
 
 void Widget::updateControlsGeometry() {
@@ -4517,6 +4616,8 @@ void Widget::updateControlsGeometry() {
 	_jumpToDate->moveToLeft(right, _search->y());
 	right -= _chooseFromUser->width();
 	_chooseFromUser->moveToLeft(right, _search->y());
+	right -= _chooseType->width();
+	_chooseType->moveToLeft(right, _search->y());
 
 	const auto barw = width();
 	const auto expandedStoriesTop = filterAreaTop + filterAreaHeight;

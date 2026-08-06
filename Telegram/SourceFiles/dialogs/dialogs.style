@@ -302,6 +302,11 @@ dialogsSearchFrom: IconButton(dialogsCalendar) {
 	icon: icon {{ "dialogs/dialogs_search_from", dialogsMenuIconFg }};
 	iconOver: icon {{ "dialogs/dialogs_search_from", dialogsMenuIconFgOver }};
 }
+dialogsSearchType: IconButton(dialogsSearchFrom) {
+	icon: icon {{ "menu/tag_filter", dialogsMenuIconFg }};
+	iconOver: icon {{ "menu/tag_filter", dialogsMenuIconFgOver }};
+	iconPosition: point(3px, 6px);
+}
 
 dialogsFilter: InputField(defaultInputField) {
 	textBg: filterInputInactiveBg;
@@ -374,6 +379,11 @@ dialogSearchFrom: IconButton(dialogCalendar) {
 	icon: icon {{ "dialogs/dialogs_search_from", lightButtonFg }};
 	iconOver: icon {{ "dialogs/dialogs_search_from", lightButtonFgOver }};
 	iconPosition: point(9px, 8px);
+}
+dialogSearchType: IconButton(dialogSearchFrom) {
+	icon: icon {{ "menu/tag_filter", lightButtonFg }};
+	iconOver: icon {{ "menu/tag_filter", lightButtonFgOver }};
+	iconPosition: point(8px, 8px);
 }
 
 dialogsChatTypeSkip: 3px;

@@ -5911,6 +5911,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_search_messages_from" = "Show messages from";
 "lng_search_messages_n_of_amount" = "{n} of {amount}";
 "lng_search_messages_none" = "No results";
+"lng_search_messages_filter_all_types" = "All types";
+"lng_search_messages_filter_text" = "Text";
 "lng_search_filter_all" = "All chats";
 "lng_search_filter_private" = "Private chats";
 "lng_search_filter_group" = "Group chats";

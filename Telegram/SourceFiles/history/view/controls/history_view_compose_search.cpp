@@ -39,6 +39,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_info.h"
+#include "styles/style_media_player.h"
+#include "styles/style_menu_icons.h"
 
 namespace HistoryView {
 namespace {
@@ -323,6 +325,7 @@ public:
 	[[nodiscard]] rpl::producer<not_null<QKeyEvent*>> keyEvents() const;
 
 	void setFrom(PeerData *peer);
+	void requestSearch(bool cache = true);
 	bool handleKeyPress(not_null<QKeyEvent*> e);
 
 protected:
@@ -332,7 +335,6 @@ private:
 	void clearItems();
 	void refreshTags();
 	void updateSize();
-	void requestSearch(bool cache = true);
 	void requestSearchDelayed();
 
 	base::unique_qptr<Ui::IconButton> _cancel;
@@ -657,9 +659,11 @@ public:
 	[[nodiscard]] rpl::producer<Index> showItemRequests() const;
 	[[nodiscard]] rpl::producer<> showCalendarRequests() const;
 	[[nodiscard]] rpl::producer<> showBoxFromRequests() const;
+	[[nodiscard]] rpl::producer<QPoint> showTypeMenuRequests() const;
 	[[nodiscard]] rpl::producer<> showListRequests() const;
 
 	void buttonFromToggleOn(rpl::producer<bool> &&visible);
+	void buttonTypeToggleOn(rpl::producer<bool> &&visible);
 	void buttonCalendarToggleOn(rpl::producer<bool> &&visible);
 
 	bool handleKeyPress(not_null<QKeyEvent*> e);
@@ -683,6 +687,7 @@ private:
 
 	base::unique_qptr<Ui::IconButton> _jumpToDate;
 	base::unique_qptr<Ui::IconButton> _chooseFromUser;
+	base::unique_qptr<Ui::IconButton> _chooseType;
 	base::unique_qptr<Ui::FlatLabel> _counter;
 
 	int _total = -1;
@@ -701,12 +706,15 @@ BottomBar::BottomBar(not_null<Ui::RpWidget*> parent, bool fastShowChooseFrom)
 , _jumpToDate(base::make_unique_q<Ui::IconButton>(this, st::dialogCalendar))
 , _chooseFromUser(
 	base::make_unique_q<Ui::IconButton>(this, st::dialogSearchFrom))
+, _chooseType(
+	base::make_unique_q<Ui::IconButton>(this, st::dialogSearchType))
 , _counter(base::make_unique_q<Ui::FlatLabel>(
 	this,
 	st::defaultSettingsRightLabel)) {
 
 	_counter->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_chooseFromUser->setVisible(fastShowChooseFrom);
+	_chooseType->setVisible(fastShowChooseFrom);
 
 	parent->geometryValue(
 	) | rpl::on_next([=](const QRect &r) {
@@ -719,6 +727,7 @@ BottomBar::BottomBar(not_null<Ui::RpWidget*> parent, bool fastShowChooseFrom)
 	rpl::merge(
 		_jumpToDate->shownValue() | mapSize,
 		_chooseFromUser->shownValue() | mapSize,
+		_chooseType->shownValue() | mapSize,
 		_counter->sizeValue() | mapSize,
 		sizeValue()
 	) | rpl::on_next([=](const QSize &s) {
@@ -732,6 +741,7 @@ BottomBar::BottomBar(not_null<Ui::RpWidget*> parent, bool fastShowChooseFrom)
 		const auto list = std::vector<not_null<Ui::RpWidget*>>{
 			_jumpToDate.get(),
 			_chooseFromUser.get(),
+			_chooseType.get(),
 			_counter.get() };
 		for (const auto &w : list) {
 			if (w->isHidden()) {
@@ -843,6 +853,12 @@ rpl::producer<> BottomBar::showBoxFromRequests() const {
 	return _chooseFromUser->clicks() | rpl::to_empty;
 }
 
+rpl::producer<QPoint> BottomBar::showTypeMenuRequests() const {
+	return _chooseType->clicks() | rpl::map([=] {
+		return _chooseType->mapToGlobal(QPoint(_chooseType->width(), 0));
+	});
+}
+
 rpl::producer<> BottomBar::showListRequests() const {
 	return _showList->clicks() | rpl::to_empty;
 }
@@ -853,6 +869,14 @@ void BottomBar::buttonFromToggleOn(rpl::producer<bool> &&visible) {
 	) | rpl::on_next([=](bool value) {
 		_chooseFromUser->setVisible(value);
 	}, _chooseFromUser->lifetime());
+}
+
+void BottomBar::buttonTypeToggleOn(rpl::producer<bool> &&visible) {
+	std::move(
+		visible
+	) | rpl::on_next([=](bool value) {
+		_chooseType->setVisible(value);
+	}, _chooseType->lifetime());
 }
 
 void BottomBar::buttonCalendarToggleOn(rpl::producer<bool> &&visible) {
@@ -909,6 +933,9 @@ private:
 
 	MsgId _topMsgId;
 	Api::SearchFilter _searchFilter = Api::SearchFilter::NoFilter;
+	rpl::variable<Api::SearchFilter> _searchTypeFilter
+		= Api::SearchFilter::NoFilter;
+	base::unique_qptr<Ui::PopupMenu> _menu;
 	rpl::variable<bool> _filterAllowsFrom = true;
 	Dialogs::Key _calendarChat;
 	Fn<void(FullMsgId, Fn<void()>)> _calendarJump;
@@ -955,21 +982,26 @@ ComposeSearch::Inner::Inner(
 		}
 	}, _topBar->lifetime());
 
-	_topBar->searchRequests(
-	) | rpl::on_next([=](SearchRequest search) {
+	const auto performSearch = [=](SearchRequest search) {
+		search.topMsgId = _topMsgId;
+		search.filter = (_searchFilter != Api::SearchFilter::NoFilter)
+			? _searchFilter
+			: _searchTypeFilter.current();
 		if (search.query.isEmpty() && search.tags.empty()) {
-			if (!search.from || _history->peer->isSelf()) {
+			if (search.filter == Api::SearchFilter::NoFilter
+				&& (!search.from || _history->peer->isSelf())) {
 				return;
 			}
 		}
-		search.topMsgId = _topMsgId;
-		search.filter = _searchFilter;
 		_apiSearch.clear();
 
 		_list.controller->addItems({}, true);
 		_list.controller->setQuery(search.query);
 		_apiSearch.search(search);
-	}, _topBar->lifetime());
+	};
+
+	_topBar->searchRequests(
+	) | rpl::on_next(performSearch, _topBar->lifetime());
 
 	_topBar->queryChanges(
 	) | rpl::on_next([=] {
@@ -1074,6 +1106,49 @@ ComposeSearch::Inner::Inner(
 		_window->show(std::move(box));
 	}, _bottomBar->lifetime());
 
+	_bottomBar->showTypeMenuRequests(
+	) | rpl::on_next([=](const QPoint &position) {
+		_menu = base::make_unique_q<Ui::PopupMenu>(
+			_bottomBar.get(),
+			st::popupMenuWithIcons);
+		_menu->setForcedOrigin(Ui::PanelAnimation::Origin::BottomRight);
+		const auto check = &st::mediaPlayerMenuCheck;
+		const auto add = [&](
+				Api::SearchFilter filter,
+				const QString &text,
+				const style::icon *icon) {
+			const auto selected = (_searchTypeFilter.current() == filter);
+			_menu->addAction(text, [=] {
+				if (_searchTypeFilter.current() == filter) {
+					return;
+				}
+				_searchTypeFilter = filter;
+				_topBar->requestSearch(false);
+			}, selected ? check : icon);
+		};
+		add(
+			Api::SearchFilter::NoFilter,
+			tr::lng_search_messages_filter_all_types(tr::now),
+			nullptr);
+		add(
+			Api::SearchFilter::Text,
+			tr::lng_search_messages_filter_text(tr::now),
+			nullptr);
+		add(
+			Api::SearchFilter::Photo,
+			tr::lng_media_type_photos(tr::now),
+			&st::menuIconPhoto);
+		add(
+			Api::SearchFilter::Video,
+			tr::lng_media_type_videos(tr::now),
+			nullptr);
+		add(
+			Api::SearchFilter::Gif,
+			tr::lng_media_type_gifs(tr::now),
+			&st::menuIconGif);
+		_menu->popup(position);
+	}, _bottomBar->lifetime());
+
 	_bottomBar->showListRequests(
 	) | rpl::on_next([=] {
 		if (_list.container->isHidden()) {
@@ -1093,6 +1168,11 @@ ComposeSearch::Inner::Inner(
 		_filterAllowsFrom.value()
 	) | rpl::map([=](PeerData *from, bool allowed) {
 		return allowed && HasChooseFrom(_history) && !from;
+	}));
+
+	_bottomBar->buttonTypeToggleOn(_filterAllowsFrom.value(
+	) | rpl::map([=](bool allowed) {
+		return allowed && HasChooseFrom(_history);
 	}));
 
 	if (!query.isEmpty()) {

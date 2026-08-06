@@ -232,6 +232,7 @@ private:
 
 	void showCalendar();
 	void showSearchFrom();
+	void showSearchType();
 	void showMainMenu();
 	void clearSearchCache(bool clearPosts);
 	void setSearchQuery(const QString &query, int cursorPosition = -1);
@@ -249,6 +250,8 @@ private:
 	void updateStoriesTitleShown();
 	void updateJumpToDateVisibility(bool fast = false);
 	void updateSearchFromVisibility(bool fast = false);
+	void updateSearchTypeVisibility(bool fast = false);
+	void updateSearchMargins();
 	void updateControlsGeometry();
 	void refreshTopBars();
 	void showSearchInTopBar(anim::type animated);
@@ -335,6 +338,7 @@ private:
 	object_ptr<Ui::IconButton> _searchForNarrowLayout;
 	object_ptr<Ui::InputField> _search;
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _chooseFromUser;
+	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _chooseType;
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _jumpToDate;
 	object_ptr<Ui::CrossButton> _cancelSearch;
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _lockUnlock;
@@ -347,6 +351,7 @@ private:
 	std::unique_ptr<HistoryView::ContactStatus> _forumReportBar;
 
 	base::unique_qptr<Ui::RpWidget> _chatFilters;
+	base::unique_qptr<Ui::PopupMenu> _menu;
 
 	base::unique_qptr<Ui::SlideWrap<Ui::RpWidget>> _topBarSuggestion;
 	base::unique_qptr<Ui::RpWidget> _topBarSuggestionPlaceholder;
@@ -423,6 +428,7 @@ private:
 	QString _searchQuery;
 	PeerData *_searchQueryFrom = nullptr;
 	std::vector<Data::ReactionId> _searchQueryTags;
+	Api::SearchFilter _searchQueryMediaFilter = Api::SearchFilter::NoFilter;
 	ChatSearchTab _searchQueryTab = {};
 	ChannelData *_searchQueryCommunity = nullptr;
 	ChatTypeFilter _searchQueryFilter = {};
