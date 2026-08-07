@@ -9,7 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "data/data_channel.h"
+#include "data/data_document.h"
 #include "data/data_histories.h"
+#include "data/data_media_types.h"
 #include "data/data_message_reaction_id.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
@@ -22,9 +24,26 @@ namespace {
 
 constexpr auto kSearchPerPage = 50;
 
+[[nodiscard]] bool IsTextMessage(not_null<const HistoryItem*> item) {
+	const auto media = item->media();
+	if (!media) {
+		return true;
+	}
+	if (media->photo()) {
+		return false;
+	}
+	if (const auto document = media->document()) {
+		if (document->isVideoFile() || document->isAnimation()) {
+			return false;
+		}
+	}
+	return true;
+}
+
 [[nodiscard]] MessageIdsList HistoryItemsFromTL(
 		not_null<Data::Session*> data,
-		const QVector<MTPMessage> &messages) {
+		const QVector<MTPMessage> &messages,
+		bool textOnly = false) {
 	auto result = MessageIdsList();
 	for (const auto &message : messages) {
 		const auto peerId = PeerFromMessage(message);
@@ -34,7 +53,9 @@ constexpr auto kSearchPerPage = 50;
 					message,
 					MessageFlags(),
 					NewMessageType::Existing);
-				result.push_back(item->fullId());
+				if (!textOnly || IsTextMessage(item)) {
+					result.push_back(item->fullId());
+				}
 			}
 		} else {
 			LOG(("API Error: a search results with not loaded peer %1"
@@ -186,7 +207,10 @@ void MessagesSearch::searchReceived(
 			owner.processChats(data.vchats());
 			_history->peer->processTopics(data.vtopics());
 		}
-		auto items = HistoryItemsFromTL(&owner, data.vmessages().v);
+		auto items = HistoryItemsFromTL(
+			&owner,
+			data.vmessages().v,
+			_request.filter == SearchFilter::Text);
 		const auto total = int(data.vmessages().v.size());
 		return FoundMessages{ total, std::move(items), nextToken };
 	}, [&](const MTPDmessages_messagesSlice &data) {
@@ -196,7 +220,10 @@ void MessagesSearch::searchReceived(
 			owner.processChats(data.vchats());
 			_history->peer->processTopics(data.vtopics());
 		}
-		auto items = HistoryItemsFromTL(&owner, data.vmessages().v);
+		auto items = HistoryItemsFromTL(
+			&owner,
+			data.vmessages().v,
+			_request.filter == SearchFilter::Text);
 		// data.vnext_rate() is used only in global search.
 		const auto total = int(data.vcount().v);
 		return FoundMessages{ total, std::move(items), nextToken };
@@ -214,7 +241,10 @@ void MessagesSearch::searchReceived(
 			}
 			_history->peer->processTopics(data.vtopics());
 		}
-		auto items = HistoryItemsFromTL(&owner, data.vmessages().v);
+		auto items = HistoryItemsFromTL(
+			&owner,
+			data.vmessages().v,
+			_request.filter == SearchFilter::Text);
 		const auto total = int(data.vcount().v);
 		return FoundMessages{ total, std::move(items), nextToken };
 	}, [](const MTPDmessages_messagesNotModified &data) {

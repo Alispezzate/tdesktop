@@ -80,6 +80,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
+#include "data/data_document.h"
+#include "data/data_media_types.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_user.h"
 #include "data/data_folder.h"
@@ -118,6 +120,22 @@ namespace {
 constexpr auto kSearchPerPage = 50;
 constexpr auto kStoriesExpandDuration = crl::time(200);
 constexpr auto kSearchRequestDelay = crl::time(900);
+
+[[nodiscard]] bool IsTextMessage(not_null<const HistoryItem*> item) {
+	const auto media = item->media();
+	if (!media) {
+		return true;
+	}
+	if (media->photo()) {
+		return false;
+	}
+	if (const auto document = media->document()) {
+		if (document->isVideoFile() || document->isAnimation()) {
+			return false;
+		}
+	}
+	return true;
+}
 
 base::options::toggle OptionForumHideChatsList({
 	.id = kOptionForumHideChatsList,
@@ -743,6 +761,7 @@ Widget::Widget(
 
 	updateJumpToDateVisibility(true);
 	updateSearchFromVisibility(true);
+	updateSearchTypeVisibility(true);
 	setupSupportMode();
 	setupScrollUpButton();
 	setupTouchChatPreview();
@@ -2007,6 +2026,7 @@ void Widget::updateControlsVisibility(bool fast) {
 			: anim::type::normal);
 		updateJumpToDateVisibility(fast);
 		updateSearchFromVisibility(fast);
+		updateSearchTypeVisibility(fast);
 	}
 	if (_connecting) {
 		_connecting->setForceHidden(false);
@@ -2479,6 +2499,7 @@ void Widget::refreshTopBars() {
 		}
 		_subsectionTopBar.destroy();
 		updateSearchFromVisibility(true);
+		updateSearchTypeVisibility(true);
 	}
 	_forumSearchRequested = false;
 	if (_openedForum && _openedForum->peer()->isChannel()) {
@@ -3613,7 +3634,10 @@ void Widget::searchReceived(
 						message,
 						MessageFlags(),
 						NewMessageType::Existing);
-					result.push_back(item);
+					if (_searchQueryMediaFilter != Api::SearchFilter::Text
+						|| IsTextMessage(item)) {
+						result.push_back(item);
+					}
 				}
 				process->lastPeer = peer;
 			} else {
@@ -4107,7 +4131,7 @@ bool Widget::applySearchState(SearchState state) {
 	if (!state.tags.empty()) {
 		state.inChat = session().data().history(session().user());
 	}
-	if (!state.inChat) {
+	if (!state.inChat && !forum && !_openedForum) {
 		state.mediaFilter = Api::SearchFilter::NoFilter;
 	}
 
@@ -4360,7 +4384,7 @@ void Widget::showSearchType() {
 	add(
 		Api::SearchFilter::Text,
 		tr::lng_search_messages_filter_text(tr::now),
-		nullptr);
+		&st::menuIconChatBubble);
 	add(
 		Api::SearchFilter::Photo,
 		tr::lng_media_type_photos(tr::now),
@@ -4368,7 +4392,7 @@ void Widget::showSearchType() {
 	add(
 		Api::SearchFilter::Video,
 		tr::lng_media_type_videos(tr::now),
-		nullptr);
+		&st::menuIconVideoChat);
 	add(
 		Api::SearchFilter::Gif,
 		tr::lng_media_type_gifs(tr::now),
@@ -4614,10 +4638,10 @@ void Widget::updateControlsGeometry() {
 	_cancelSearch->moveToLeft(right - _cancelSearch->width(), _search->y());
 	right -= _jumpToDate->width();
 	_jumpToDate->moveToLeft(right, _search->y());
-	right -= _chooseFromUser->width();
-	_chooseFromUser->moveToLeft(right, _search->y());
 	right -= _chooseType->width();
 	_chooseType->moveToLeft(right, _search->y());
+	right -= _chooseFromUser->width();
+	_chooseFromUser->moveToLeft(right, _search->y());
 
 	const auto barw = width();
 	const auto expandedStoriesTop = filterAreaTop + filterAreaHeight;

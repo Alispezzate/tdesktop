@@ -739,9 +739,9 @@ BottomBar::BottomBar(not_null<Ui::RpWidget*> parent, bool fastShowChooseFrom)
 
 		auto left = st::topBarActionSkip;
 		const auto list = std::vector<not_null<Ui::RpWidget*>>{
-			_jumpToDate.get(),
 			_chooseFromUser.get(),
 			_chooseType.get(),
+			_jumpToDate.get(),
 			_counter.get() };
 		for (const auto &w : list) {
 			if (w->isHidden()) {
@@ -1133,7 +1133,7 @@ ComposeSearch::Inner::Inner(
 		add(
 			Api::SearchFilter::Text,
 			tr::lng_search_messages_filter_text(tr::now),
-			nullptr);
+			&st::menuIconChatBubble);
 		add(
 			Api::SearchFilter::Photo,
 			tr::lng_media_type_photos(tr::now),
@@ -1141,7 +1141,7 @@ ComposeSearch::Inner::Inner(
 		add(
 			Api::SearchFilter::Video,
 			tr::lng_media_type_videos(tr::now),
-			nullptr);
+			&st::menuIconVideoChat);
 		add(
 			Api::SearchFilter::Gif,
 			tr::lng_media_type_gifs(tr::now),
