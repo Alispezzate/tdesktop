@@ -714,7 +714,7 @@ BottomBar::BottomBar(not_null<Ui::RpWidget*> parent, bool fastShowChooseFrom)
 
 	_counter->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_chooseFromUser->setVisible(fastShowChooseFrom);
-	_chooseType->setVisible(fastShowChooseFrom);
+	_chooseType->setVisible(true);
 
 	parent->geometryValue(
 	) | rpl::on_next([=](const QRect &r) {
@@ -1129,7 +1129,7 @@ ComposeSearch::Inner::Inner(
 		add(
 			Api::SearchFilter::NoFilter,
 			tr::lng_search_messages_filter_all_types(tr::now),
-			nullptr);
+			&st::menuIconShowAll);
 		add(
 			Api::SearchFilter::Text,
 			tr::lng_search_messages_filter_text(tr::now),
@@ -1141,7 +1141,7 @@ ComposeSearch::Inner::Inner(
 		add(
 			Api::SearchFilter::Video,
 			tr::lng_media_type_videos(tr::now),
-			&st::menuIconVideoChat);
+			&st::menuIconVideo);
 		add(
 			Api::SearchFilter::Gif,
 			tr::lng_media_type_gifs(tr::now),
@@ -1172,7 +1172,7 @@ ComposeSearch::Inner::Inner(
 
 	_bottomBar->buttonTypeToggleOn(_filterAllowsFrom.value(
 	) | rpl::map([=](bool allowed) {
-		return allowed && HasChooseFrom(_history);
+		return allowed;
 	}));
 
 	if (!query.isEmpty()) {

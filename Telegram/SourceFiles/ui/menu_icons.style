@@ -105,6 +105,7 @@ menuIconSearch: icon {{ "menu/search", menuIconColor }};
 menuIconStartStream: icon {{ "menu/start_stream", menuIconColor }};
 menuIconStartStreamWith: icon {{ "menu/start_stream_with", menuIconColor }};
 menuIconVideoChat: icon {{ "menu/video_chat", menuIconColor }};
+menuIconVideo: icon {{ "overview_video_play", menuIconColor }};
 menuIconTranslate: icon {{ "menu/translate", menuIconColor }};
 menuIconReportAntiSpam: icon {{ "menu/false_positive", menuIconColor }};
 menuIconSpoiler: icon {{ "menu/spoiler_on", menuIconColor }};

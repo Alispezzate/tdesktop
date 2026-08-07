@@ -303,8 +303,8 @@ dialogsSearchFrom: IconButton(dialogsCalendar) {
 	iconOver: icon {{ "dialogs/dialogs_search_from", dialogsMenuIconFgOver }};
 }
 dialogsSearchType: IconButton(dialogsSearchFrom) {
-	icon: icon {{ "menu/tag_filter", dialogsMenuIconFg }};
-	iconOver: icon {{ "menu/tag_filter", dialogsMenuIconFgOver }};
+	icon: icon {{ "menu/all_media", dialogsMenuIconFg }};
+	iconOver: icon {{ "menu/all_media", dialogsMenuIconFgOver }};
 	iconPosition: point(3px, 6px);
 }
 
@@ -381,8 +381,8 @@ dialogSearchFrom: IconButton(dialogCalendar) {
 	iconPosition: point(9px, 8px);
 }
 dialogSearchType: IconButton(dialogSearchFrom) {
-	icon: icon {{ "menu/tag_filter", lightButtonFg }};
-	iconOver: icon {{ "menu/tag_filter", lightButtonFgOver }};
+	icon: icon {{ "menu/all_media", lightButtonFg }};
+	iconOver: icon {{ "menu/all_media", lightButtonFgOver }};
 	iconPosition: point(8px, 8px);
 }
 

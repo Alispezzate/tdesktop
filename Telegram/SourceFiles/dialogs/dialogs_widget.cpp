@@ -4131,10 +4131,6 @@ bool Widget::applySearchState(SearchState state) {
 	if (!state.tags.empty()) {
 		state.inChat = session().data().history(session().user());
 	}
-	if (!state.inChat && !forum && !_openedForum) {
-		state.mediaFilter = Api::SearchFilter::NoFilter;
-	}
-
 	const auto clearQuery = state.fromPeer
 		&& (_lastSearchText == HistoryView::SwitchToChooseFromQuery());
 	if (clearQuery) {
@@ -4380,7 +4376,7 @@ void Widget::showSearchType() {
 	add(
 		Api::SearchFilter::NoFilter,
 		tr::lng_search_messages_filter_all_types(tr::now),
-		nullptr);
+		&st::menuIconShowAll);
 	add(
 		Api::SearchFilter::Text,
 		tr::lng_search_messages_filter_text(tr::now),
@@ -4392,7 +4388,7 @@ void Widget::showSearchType() {
 	add(
 		Api::SearchFilter::Video,
 		tr::lng_media_type_videos(tr::now),
-		&st::menuIconVideoChat);
+		&st::menuIconVideo);
 	add(
 		Api::SearchFilter::Gif,
 		tr::lng_media_type_gifs(tr::now),
@@ -4543,14 +4539,10 @@ void Widget::updateSearchFromVisibility(bool fast) {
 }
 
 void Widget::updateSearchTypeVisibility(bool fast) {
-	auto visible = [&] {
-		if (const auto peer = searchInPeer()) {
-			if (peer->isChat() || peer->isMegagroup()) {
-				return true;
-			}
-		}
-		return false;
-	}();
+	const auto visible = (searchInPeer() != nullptr)
+		|| (!_searchState.query.isEmpty()
+			&& _searchState.tab != ChatSearchTab::PublicPosts)
+		|| (_searchState.mediaFilter != Api::SearchFilter::NoFilter);
 	const auto changed = (visible == !_chooseType->toggled());
 	_chooseType->toggle(
 		visible,
